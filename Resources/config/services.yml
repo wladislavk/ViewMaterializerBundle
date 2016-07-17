@@ -1,0 +1,7 @@
+services:
+    vkr_view_materializer.view_materializer:
+        class: VKR\ViewMaterializerBundle\Services\ViewMaterializer
+        arguments:
+            - "@doctrine.orm.entity_manager"
+            - "%vkr_view_materializer.view_definitions%"
+            - "%vkr_view_materializer.log_file%"
