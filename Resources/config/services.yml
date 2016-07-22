@@ -3,5 +3,6 @@ services:
         class: VKR\ViewMaterializerBundle\Services\ViewMaterializer
         arguments:
             - "@doctrine.orm.entity_manager"
+            - "@vkr_custom_logger.logger"
             - "%vkr_view_materializer.view_definitions%"
             - "%vkr_view_materializer.log_file%"
