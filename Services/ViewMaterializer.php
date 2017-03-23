@@ -15,17 +15,17 @@ class ViewMaterializer
     /**
      * @var CustomLogger
      */
-    protected $customLogger;
+    private $customLogger;
 
     /**
      * @var string[]
      */
-    protected $definitions;
+    private $definitions;
 
     /**
      * @var string
      */
-    protected $logFile;
+    private $logFile;
 
     /**
      * @param EntityManager $entityManager
@@ -78,7 +78,7 @@ class ViewMaterializer
      * @param string $sql
      * @param \Exception $e
      */
-    protected function logError(Logger $logger, $sql, \Exception $e)
+    private function logError(Logger $logger, $sql, \Exception $e)
     {
         $logger->addError("Error while executing query $sql. Exception message: {$e->getMessage()}");
     }

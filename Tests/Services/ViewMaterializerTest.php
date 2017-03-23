@@ -4,62 +4,36 @@ namespace VKR\ViewMaterializerBundle\Tests\Services;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManager;
 use Monolog\Logger;
+use PHPUnit\Framework\TestCase;
 use VKR\CustomLoggerBundle\Services\CustomLogger;
 use VKR\ViewMaterializerBundle\Services\ViewMaterializer;
 
-class ViewMaterializerTest extends \PHPUnit_Framework_TestCase
+class ViewMaterializerTest extends TestCase
 {
     /**
      * @var ViewMaterializer
      */
-    protected $viewMaterializer;
-
-    /**
-     * @var \PHPUnit_Framework_MockObject_MockObject
-     */
-    protected $entityManager;
-
-    /**
-     * @var \PHPUnit_Framework_MockObject_MockObject
-     */
-    protected $successfulDoctrineConnection;
-
-    /**
-     * @var \PHPUnit_Framework_MockObject_MockObject
-     */
-    protected $failedDoctrineConnection;
-
-    /**
-     * @var \PHPUnit_Framework_MockObject_MockObject
-     */
-    protected $customLogger;
-
-    /**
-     * @var \PHPUnit_Framework_MockObject_MockObject
-     */
-    protected $logger;
+    private $viewMaterializer;
 
     /**
      * @var string[]
      */
-    protected $executedQueries;
+    private $executedQueries;
 
     /**
      * @var string
      */
-    protected $loggedError;
+    private $loggedError;
 
     /**
      * @var string[]
      */
-    protected $definitions;
+    private $definitions;
 
-    protected $logFile = 'my_log';
+    private $logFile = 'my_log';
 
     public function setUp()
     {
-        $this->mockMonolog();
-        $this->mockCustomLogger();
         $this->definitions = [
             'mview_first_view' => 'SELECT a FROM table1',
             'mview_second_view' => 'SELECT b FROM table2',
@@ -69,10 +43,10 @@ class ViewMaterializerTest extends \PHPUnit_Framework_TestCase
 
     public function testMaterializeViews()
     {
-        $this->mockSuccessfulDoctrineConnection();
-        $this->mockEntityManager(true);
+        $customLogger = $this->mockCustomLogger();
+        $entityManager = $this->mockEntityManager(true);
         $this->viewMaterializer = new ViewMaterializer(
-            $this->entityManager, $this->customLogger, $this->definitions, $this->logFile
+            $entityManager, $customLogger, $this->definitions, $this->logFile
         );
         $isSuccessful = $this->viewMaterializer->materializeViews();
         $this->assertTrue($isSuccessful);
@@ -85,10 +59,10 @@ class ViewMaterializerTest extends \PHPUnit_Framework_TestCase
 
     public function testMaterializeViewsWithError()
     {
-        $this->mockFailedDoctrineConnection();
-        $this->mockEntityManager(false);
+        $customLogger = $this->mockCustomLogger();
+        $entityManager = $this->mockEntityManager(false);
         $this->viewMaterializer = new ViewMaterializer(
-            $this->entityManager, $this->customLogger, $this->definitions, $this->logFile
+            $entityManager, $customLogger, $this->definitions, $this->logFile
         );
         $isSuccessful = $this->viewMaterializer->materializeViews();
         $this->assertFalse($isSuccessful);
@@ -98,65 +72,48 @@ Exception message: Update failed";
         $this->assertEquals(str_replace("\n", ' ', $errorMessage), $this->loggedError);
     }
 
-    protected function mockMonolog()
+    private function mockMonolog()
     {
-        $this->logger = $this
-            ->getMockBuilder(Logger::class)
-            ->disableOriginalConstructor()
-            ->getMock();
-        $this->logger->expects($this->any())
-            ->method('addError')
-            ->will($this->returnCallback([$this, 'loggerAddErrorCallback']));
+        $logger = $this->createMock(Logger::class);
+        $logger->method('addError')
+            ->willReturnCallback([$this, 'loggerAddErrorCallback']);
+        return $logger;
     }
 
-    protected function mockCustomLogger()
+    private function mockCustomLogger()
     {
-        $this->customLogger = $this
-            ->getMockBuilder(CustomLogger::class)
-            ->disableOriginalConstructor()
-            ->getMock();
-        $this->customLogger->expects($this->any())
-            ->method('setLogger')
-            ->will($this->returnValue($this->logger));
+        $customLogger = $this->createMock(CustomLogger::class);
+        $customLogger->method('setLogger')->willReturn($this->mockMonolog());
+        return $customLogger;
     }
 
-    protected function mockEntityManager($isSuccessful)
+    private function mockEntityManager($isSuccessful)
     {
-        $this->entityManager = $this
-            ->getMockBuilder(EntityManager::class)
-            ->disableOriginalConstructor()
-            ->getMock();
+        $entityManager = $this->createMock(EntityManager::class);
         if ($isSuccessful) {
-            $this->entityManager->expects($this->any())
-                ->method('getConnection')
-                ->will($this->returnValue($this->successfulDoctrineConnection));
-            return;
+            $entityManager->method('getConnection')
+                ->willReturn($this->mockSuccessfulDoctrineConnection());
+            return $entityManager;
         }
-        $this->entityManager->expects($this->any())
-            ->method('getConnection')
-            ->will($this->returnValue($this->failedDoctrineConnection));
+        $entityManager->method('getConnection')
+            ->willReturn($this->mockFailedDoctrineConnection());
+        return $entityManager;
     }
 
-    protected function mockSuccessfulDoctrineConnection()
+    private function mockSuccessfulDoctrineConnection()
     {
-        $this->successfulDoctrineConnection = $this
-            ->getMockBuilder(Connection::class)
-            ->disableOriginalConstructor()
-            ->getMock();
-        $this->successfulDoctrineConnection->expects($this->any())
-            ->method('executeUpdate')
-            ->will($this->returnCallback([$this, 'successfulExecuteUpdateCallback']));
+        $successfulDoctrineConnection = $this->createMock(Connection::class);
+        $successfulDoctrineConnection->method('executeUpdate')
+            ->willReturnCallback([$this, 'successfulExecuteUpdateCallback']);
+        return $successfulDoctrineConnection;
     }
 
-    protected function mockFailedDoctrineConnection()
+    private function mockFailedDoctrineConnection()
     {
-        $this->failedDoctrineConnection = $this
-            ->getMockBuilder(Connection::class)
-            ->disableOriginalConstructor()
-            ->getMock();
-        $this->failedDoctrineConnection->expects($this->any())
-            ->method('executeUpdate')
-            ->will($this->returnCallback([$this, 'failedExecuteUpdateCallback']));
+        $failedDoctrineConnection = $this->createMock(Connection::class);
+        $failedDoctrineConnection->method('executeUpdate')
+            ->willReturnCallback([$this, 'failedExecuteUpdateCallback']);
+        return $failedDoctrineConnection;
     }
 
     public function successfulExecuteUpdateCallback($sql)
